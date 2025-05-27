@@ -1,7 +1,7 @@
 from uuid import uuid4
 from typing import List
 
-from src.database.models import Product, Review, User
+from src.database.models import Product, Review, User, Cart, Wishlist
 from src.database.base import db
 
 
@@ -129,3 +129,70 @@ def get_user(user_id: str):
 def get_tokens(email: str, password: str) -> dict|None:
     user = db.one_or_404(db.session.query(User).where(User.email==email))
     return user.get_tokens(password)
+
+
+
+def get_cart(user_id: str) -> list:
+    return db.session.query(Cart).filter_by(user_id=user_id).all()
+
+
+def get_cart_item(user_id: str, product_id: str) -> Cart:
+    return db.one_or_404(db.session.query(Cart).filter_by(user_id=user_id, product_id=product_id))
+
+
+
+def add_to_cart(user_id: str, product_id: str, quantity: int = 1) -> str:
+    item = db.session.query(Cart).filter_by(user_id=user_id, product_id=product_id).first()
+    if item:
+        item.quantity += quantity
+    else:
+        item = Cart(
+            id=uuid4().hex,
+            user_id=user_id,
+            product_id=product_id,
+            quantity=quantity
+        )
+        db.session.add(item)
+    db.session.commit()
+    db.session.refresh(item)
+    return item.id
+
+def edit_cart_item(user_id: str, product_id: str, quantity: int) -> str:
+    item = db.one_or_404(db.session.query(Cart).filter_by(user_id=user_id, product_id=product_id))
+    item.quantity = quantity
+    db.session.commit()
+    return "Successful"
+
+def remove_from_cart(user_id: str, product_id: str) -> str:
+    item = db.one_or_404(db.session.query(Cart).filter_by(user_id=user_id, product_id=product_id))
+    db.session.delete(item)
+    db.session.commit()
+    return "Successful"
+
+# --- WISHLIST ---
+
+def get_wishlist(user_id: str) -> list:
+    return db.session.query(Wishlist).filter_by(user_id=user_id).all()
+
+def get_wishlist_item(user_id: str, product_id: str) -> Wishlist:
+    return db.one_or_404(db.session.query(Wishlist).filter_by(user_id=user_id, product_id=product_id))
+
+def add_to_wishlist(user_id: str, product_id: str) -> str:
+    item = db.session.query(Wishlist).filter_by(user_id=user_id, product_id=product_id).first()
+    if not item:
+        item = Wishlist(
+            id=uuid4().hex,
+            user_id=user_id,
+            product_id=product_id
+        )
+        db.session.add(item)
+        db.session.commit()
+        db.session.refresh(item)
+        return item.id
+    return item.id
+
+def remove_from_wishlist(user_id: str, product_id: str) -> str:
+    item = db.one_or_404(db.session.query(Wishlist).filter_by(user_id=user_id, product_id=product_id))
+    db.session.delete(item)
+    db.session.commit()
+    return "Successful"

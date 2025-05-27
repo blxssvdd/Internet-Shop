@@ -2,6 +2,7 @@ import os
 import binascii
 from datetime import timedelta
 
+
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from flask_restful import Resource, Api, reqparse
@@ -26,6 +27,7 @@ migrate = Migrate(app, db)
 
 
 # with app.app_context():
+#     db.drop_all()
 #     db.create_all()
 
 
@@ -172,7 +174,6 @@ class TokenAPI(Resource):
         response.status_code = 200
         return response
 
-
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument("email")
@@ -182,13 +183,81 @@ class TokenAPI(Resource):
         response = jsonify(tokens)
         response.status_code = 200
         return response
+    
+
+
+class CartAPI(Resource):
+    @jwt_required()
+    def get(self):
+        user_id = get_jwt_identity()
+        cart = db_actions.get_cart(user_id)
+        response = jsonify(cart)
+        response.status_code = 200
+        return response
+
+    @jwt_required()
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("product_id")
+        parser.add_argument("quantity", type=int, default=1)
+        args = parser.parse_args()
+        user_id = get_jwt_identity()
+        msg = db_actions.add_to_cart(user_id, args["product_id"], args["quantity"])
+        response = jsonify(msg)
+        response.status_code = 201
+        return response
+
+    @jwt_required()
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("product_id")
+        args = parser.parse_args()
+        user_id = get_jwt_identity()
+        msg = db_actions.remove_from_cart(user_id, args["product_id"])
+        response = jsonify(msg)
+        response.status_code = 200
+        return response
+
+class WishlistAPI(Resource):
+    @jwt_required()
+    def get(self):
+        user_id = get_jwt_identity()
+        wishlist = db_actions.get_wishlist(user_id)
+        response = jsonify(wishlist)
+        response.status_code = 200
+        return response
+
+    @jwt_required()
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("product_id")
+        args = parser.parse_args()
+        user_id = get_jwt_identity()
+        msg = db_actions.add_to_wishlist(user_id, args["product_id"])
+        response = jsonify(msg)
+        response.status_code = 201
+        return response
+
+    @jwt_required()
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("product_id")
+        args = parser.parse_args()
+        user_id = get_jwt_identity()
+        msg = db_actions.remove_from_wishlist(user_id, args["product_id"])
+        response = jsonify(msg)
+        response.status_code = 200
+        return response
 
 
 api.add_resource(ProductAPI, "/api/products/", "/api/products/<product_id>")
 api.add_resource(ReviewAPI, "/api/reviews/", "/api/reviews/<review_id>")
+api.add_resource(CartAPI, "/api/cart/")
+api.add_resource(WishlistAPI, "/api/wishlist/")
 api.add_resource(UserAPI, "/api/user/")
 api.add_resource(TokenAPI, "/api/token/")
 
+
 if __name__ == "__main__":
-    app.run(debug=True, port=3001)
+    app.run(debug=True, port=3002)
     
